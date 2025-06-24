@@ -1,5 +1,5 @@
 @startuml
-title MVP MVP цифрового открытия депозитов банка Стандарт. Context Diagram
+title MVP цифрового открытия депозитов банка Стандарт. Context Diagram
 
 top to bottom direction
 
@@ -7,7 +7,6 @@ top to bottom direction
 
 Person_Ext(new_user, "New user", "отправляет заявку на депозит через сайт")
 Person_Ext(current_user, "Current user", "открывает депозит")
-
 
 Boundary(front_office, "Front Office", "") {
     Person(front_manager, "Front manager", "принимает депозитные заявки новых пользователей")
@@ -20,7 +19,6 @@ Boundary(back_office, "Back Office", "") {
         Person(back_credit_manager, "Back credit manager", "подтверждает условия депозитов для состоятельных клиентов\n- рассчитывает ежедневные ставки депозитов")
     }
 
-
     Person(call_operator, "Call-operator", "уточняет заявку и согласовывает посещение офиса")
     System(sms_gateway, "СМС шлюз", "отправка запросов к телеком оператору")
     System(abs, "АБС", "автоматизированная банковская система")
@@ -32,7 +30,6 @@ Boundary(ext_office, "External Office", "") {
     Person_Ext(partner_call_operator, "Partner call-operator", "уточняет заявку и согласовывает посещение офиса")
     System_Ext(partner_call_centre, "Partner call-центр", "партнерская система call-центра")
 }
-
 
 
 System_Ext(telecom_operator, "Telecom Operator", "отправляет смс")
@@ -66,7 +63,5 @@ Lay_D(internet_bank, telecom_operator )
 Lay_R(call_centre, call_operator)
 
 Lay_L(ext_office, new_user)
-
-
 
 @enduml

@@ -22,7 +22,8 @@ Boundary(back_office, "Back Office", "") {
         Container(auth_service, "Auth service", Java Spring, "авторизация и аутентификация")
         Container(user_service, "User service", Java Spring, "пользователи")
         Container(account_aggregator, "Account aggregator", Java Spring, "состояние счетов")
-        Container(abs_connector, "ABS connector", Java Spring, "связь с АБС")
+        Container(abs_connector, "ABS connector", "Java Spring", "связь с АБС")
+
 
         Container(front_ib, "NEW IB web app", "React.js, browser", "обновленный интернет банк")
         Container(front_site, "Site SPA", "React SPA, browser", "сайт\nс рекламой депозитов")
@@ -39,7 +40,7 @@ Boundary(back_office, "Back Office", "") {
         ContainerDb(ib_cache, "Cache", "Redis", "Состояние счетов")
 
         ContainerQueue(requests_queue, "Очередь заявок", Kafka, "Очередь изменений по депозитным/кредитным заявкам ")
-
+        Container(partner_call_adapter, "Partner call-centre adapter", "Java, Spring", "Передача файлов")
     }
 
     Boundary(abs, "ABS", "System") {
@@ -47,7 +48,6 @@ Boundary(back_office, "Back Office", "") {
          Container(abs_client, "ABS client", Delphi, "десктоп-клиент к АБС")
          ContainerDb(abs_db, "АБС БД", Oracle, "база данных АБС")
          Container(request_synchronizer, "Синхронизатор заявок", "Java, Spring", "синхронизирует заявки")
-
     }
 }
 
@@ -97,12 +97,16 @@ Rel(abs_db, abs_adapter, " ")
 Rel(back_credit_manager, abs_client,"расчет ставок депозитов")
 Rel(back_deposit_manager, abs_client,"подтверждение заявок")
 Rel(back_deposit_manager, abs_client,"расчет индивидуальных ставок")
-Rel(abs_adapter, sms_gateway,"отправка смс")
+Rel(sms_gateway, abs_adapter,"проверка неотправленных уведомлений")
 
 Rel(requests_queue, call_centre,"чтение")
 Rel(call_centre, requests_queue,"запись")
-Rel(requests_queue, partner_call_centre,"чтение")
-Rel(partner_call_centre, requests_queue,"запись")
+
+Rel(requests_queue, partner_call_adapter,"чтение")
+Rel(partner_call_adapter, requests_queue,"запись")
+
+Rel(partner_call_adapter, partner_call_centre,"SFTP")
+Rel(partner_call_centre, partner_call_adapter," ")
 
 Rel(request_synchronizer, requests_queue,"запись")
 Rel(requests_queue, request_synchronizer,"чтение")
