@@ -1,0 +1,115 @@
+@startuml
+title "MVP цифрового открытия депозитов банка Стандарт.\nInternet Bank and ABS Containers Diagram"
+
+top to bottom direction
+
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+Person_Ext(current_user, "Current user", "открывает депозит")
+Person_Ext(new_user, "New user", "отправляет заявку на депозит через сайт")
+
+Boundary(back_office, "Back Office", "") {
+    System_Ext(partner_call_centre, "Partner call-центр", "партнерская система call-центра")
+    System(sms_gateway, "СМС шлюз", "отправка запросов к телеком оператору")
+    System(call_centre, "Call-центр", "Cистема call-центра")
+
+    Person(back_deposit_manager, "Back deposit manager", "подтверждает депозитные заявки\n- рассчитывает персональные ставки")
+    Person(back_credit_manager, "Back credit manager", "подтверждает условия депозитов для состоятельных клиентов\n- рассчитывает ежедневные ставки депозитов")
+
+    Boundary(internet_bank, "Internet bank", "System") {
+        Container(lb, "Load balancer", "https", "балансировка http")
+        Container(proxy_api, "Proxy API Gateway", "nginx", "REST, gateway, reverse proxy")
+        Container(auth_service, "Auth service", Java Spring, "авторизация и аутентификация")
+        Container(user_service, "User service", Java Spring, "пользователи")
+        Container(account_aggregator, "Account aggregator", Java Spring, "состояние счетов")
+        Container(abs_connector, "ABS connector", Java Spring, "связь с АБС")
+
+        Container(front_ib, "NEW IB web app", "React.js, browser", "обновленный интернет банк")
+        Container(front_site, "Site SPA", "React SPA, browser", "сайт\nс рекламой депозитов")
+
+        Container(bff_ib, "BFF IB", "Java, Spring", "BFF - Собирает данные для фронта")
+        Container(site, "Site SSR", "Next.js", "статика + актуальные депозиты")
+
+        Container(deposit_service, "Deposit service", Java Spring, "Депозитные ставки и заявки")
+
+        Container(monolith, "Old Internet bank monolith", "C#, .NET", "Платежи")
+
+        ContainerDb(ic_db, "IB database", "Postgres", "пользователи и пр.")
+        ContainerDb(monolith_db, "Monolith DB", "MS SQL", "БД монолита")
+        ContainerDb(ib_cache, "Cache", "Redis", "Состояние счетов")
+
+        ContainerQueue(requests_queue, "Очередь заявок", Kafka, "Очередь изменений по депозитным/кредитным заявкам ")
+
+    }
+
+    Boundary(abs, "ABS", "System") {
+         Container(abs_adapter, "ABS REST adapter", "Java, Spring", "REST адаптер АБС")
+         Container(abs_client, "ABS client", Delphi, "десктоп-клиент к АБС")
+         ContainerDb(abs_db, "АБС БД", Oracle, "база данных АБС")
+         Container(request_synchronizer, "Синхронизатор заявок", "Java, Spring", "синхронизирует заявки")
+
+    }
+}
+
+
+Rel(proxy_api, site," ")
+Rel(site, deposit_service," ")
+
+
+Rel(lb, proxy_api," ")
+Rel(proxy_api, user_service, " ")
+Rel(proxy_api, account_aggregator, " ")
+Rel(proxy_api, deposit_service, " ")
+Rel(proxy_api, monolith, "Платежи ")
+Rel(deposit_service, requests_queue, " ")
+Rel(proxy_api, bff_ib, "Сбор данных")
+Rel(account_aggregator, ib_cache, " ")
+
+Rel(front_ib, lb, "REST")
+Rel(front_site, lb, "REST")
+Rel(new_user, front_site,"заявка\nна депозит (ФИО,телефон)")
+
+Rel(bff_ib, account_aggregator, "Сбор данных")
+Rel(bff_ib, deposit_service, "Сбор данных")
+Rel(bff_ib, user_service, "Сбор данных")
+Rel(bff_ib, abs_connector, "статус заявки")
+Rel(bff_ib, monolith, "платежи\nтранзакции")
+
+Rel(auth_service, user_service, " ")
+
+Rel(user_service, ic_db, " ")
+Rel(monolith, monolith_db, " ")
+
+Rel(current_user, front_ib, "заявка\nна депозит (счет,сумма)")
+
+Rel(proxy_api, auth_service," ")
+Rel(abs_client, abs_db," pl/sql ")
+Rel(abs_db, abs_client, " ")
+
+Rel(account_aggregator, abs_connector, "состояния счетов")
+Rel(deposit_service, abs_connector, "статус заявки")
+
+Rel(abs_connector, abs_adapter, " ")
+
+Rel(abs_adapter, abs_db, " pl/sql ")
+Rel(abs_db, abs_adapter, " ")
+
+Rel(back_credit_manager, abs_client,"расчет ставок депозитов")
+Rel(back_deposit_manager, abs_client,"подтверждение заявок")
+Rel(back_deposit_manager, abs_client,"расчет индивидуальных ставок")
+Rel(abs_adapter, sms_gateway,"отправка смс")
+
+Rel(requests_queue, call_centre,"чтение")
+Rel(call_centre, requests_queue,"запись")
+Rel(requests_queue, partner_call_centre,"чтение")
+Rel(partner_call_centre, requests_queue,"запись")
+
+Rel(request_synchronizer, requests_queue,"запись")
+Rel(requests_queue, request_synchronizer,"чтение")
+Rel(request_synchronizer, abs_db, " ")
+Rel(abs_db, request_synchronizer, " pl/sql ")
+
+Lay_D(request_synchronizer, requests_queue)
+
+
+@enduml

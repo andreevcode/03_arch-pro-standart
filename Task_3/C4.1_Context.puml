@@ -1,0 +1,72 @@
+@startuml
+title MVP MVP цифрового открытия депозитов банка Стандарт. Context Diagram
+
+top to bottom direction
+
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+Person_Ext(new_user, "New user", "отправляет заявку на депозит через сайт")
+Person_Ext(current_user, "Current user", "открывает депозит")
+
+
+Boundary(front_office, "Front Office", "") {
+    Person(front_manager, "Front manager", "принимает депозитные заявки новых пользователей")
+}
+
+Boundary(back_office, "Back Office", "") {
+    Person(back_deposit_manager, "Back deposit manager", "подтверждает депозитные заявки\n- рассчитывает персональные ставки")
+    together{
+        System_Ext(centrobank_site, "Сайт центробанка", "Публикация ставки рефинансирования")
+        Person(back_credit_manager, "Back credit manager", "подтверждает условия депозитов для состоятельных клиентов\n- рассчитывает ежедневные ставки депозитов")
+    }
+
+
+    Person(call_operator, "Call-operator", "уточняет заявку и согласовывает посещение офиса")
+    System(sms_gateway, "СМС шлюз", "отправка запросов к телеком оператору")
+    System(abs, "АБС", "автоматизированная банковская система")
+    System(internet_bank, "Internet bank", "Интернет банк")
+    System(call_centre, "Call-центр", "Cистема call-центра")
+}
+
+Boundary(ext_office, "External Office", "") {
+    Person_Ext(partner_call_operator, "Partner call-operator", "уточняет заявку и согласовывает посещение офиса")
+    System_Ext(partner_call_centre, "Partner call-центр", "партнерская система call-центра")
+}
+
+
+
+System_Ext(telecom_operator, "Telecom Operator", "отправляет смс")
+
+Rel(partner_call_operator,partner_call_centre,"использует")
+Rel(call_operator,call_centre,"использует")
+Rel(call_operator,new_user,"звонит")
+Rel(partner_call_operator,new_user,"звонит")
+Rel(new_user,abs, "отправляет заявку через сайт")
+Rel(new_user,front_manager, "приходит в офис")
+
+Rel(front_manager, new_user, "идентифицирует, заключает договор договора")
+Rel(front_manager,abs, "Отправляет заявку\nна согласование в бэк-офис")
+Rel(front_manager,abs, "Открывает\nдепозитный счет")
+
+Rel(current_user, internet_bank, "отправляет заявку на депозит")
+Rel(internet_bank, abs, "регистрация заявки")
+Rel(back_deposit_manager, abs, "согласование\nзаявок")
+Rel(back_credit_manager, abs, "расчет ставок депозитов")
+Rel(back_credit_manager, centrobank_site, "учет ставки рефинансирования")
+
+Rel(abs, call_centre, "отправка заявок на открытие депозита")
+Rel(abs, partner_call_centre, "отправка заявок на открытие депозита")
+
+Rel(abs, sms_gateway, "запрашивает уведомление клиентов")
+Rel(sms_gateway, telecom_operator, "запрос на отправку SMS клиентам")
+Rel(telecom_operator, current_user, "СМС об открытии депозита")
+Lay_L(call_operator, abs)
+
+Lay_D(internet_bank, telecom_operator )
+Lay_R(call_centre, call_operator)
+
+Lay_L(ext_office, new_user)
+
+
+
+@enduml
