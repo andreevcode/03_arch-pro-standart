@@ -1,0 +1,102 @@
+@startuml
+title "MVP цифрового открытия депозитов банка Стандарт. Container Diagram"
+
+top to bottom direction
+
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+Person_Ext(current_user, "Current user", "открывает депозит")
+Person_Ext(new_user, "New user", "отправляет заявку на депозит через сайт")
+
+
+Boundary(back_office, "Back Office", "") {
+    System_Ext(partner_call_centre, "Partner call-centre", "партнерская система call-центра")
+    System(sms_gateway, "SMS gateway", "отправка запросов к телеком оператору")
+    System(call_centre, "Call-centre", "Cистема call-центра")
+
+    Person(back_deposit_manager, "Back deposit manager", "подтверждает депозитные заявки\n- рассчитывает персональные ставки")
+    Person(back_credit_manager, "Back credit manager", "подтверждает условия депозитов для состоятельных клиентов\n- рассчитывает ежедневные ставки депозитов")
+
+    Boundary(internet_bank, "Internet bank", "System") {
+        Container(lb, "Load balancer", "https", "балансировка http")
+        Container(proxy_api, "NEW\nProxy API Gateway", "nginx", "REST, gateway, reverse proxy")
+
+        Container(front_ib, "NEW\nIB web app", "React.js, browser", "обновленный интернет банк")
+        Container(front_site, "Site SPA", "React SPA, browser", "сайт\nс рекламой депозитов")
+
+        Container(bff_ib, "NEW\nBFF IB", "Java, Spring", "BFF - Собирает данные для фронта")
+        Container(site, "NEW\nSite SSR", "Next.js", "статика + актуальные депозиты")
+
+        Container(deposit_service, "NEW\nDeposit service", Java Spring, "Депозитные ставки и заявки")
+
+        Container(monolith, "Old Internet bank monolith", "C#, .NET", "Платежи, счета, пользователи")
+
+        ContainerDb(ib_db, "NEW\nIB database", "Postgres", "депозитные ставки\nи заявки")
+        ContainerDb(monolith_db, "Monolith DB", "MS SQL", "БД монолита")
+        ContainerDb(ib_cache, "NEW\nIB Cache", "Redis", "Cчета, депозитные ставки и заявки")
+
+        ContainerQueue(requests_queue, "NEW\nRequests queue", Kafka, "Очередь изменений по депозитным/кредитным заявкам ")
+        Container(partner_call_adapter, "NEW\nPartner call-centre adapter", "Java, Spring", "Передача файлов")
+    }
+
+    Boundary(abs, "ABS", "System") {
+         Container(abs_adapter, "ABS REST adapter", "Java, Spring", "REST адаптер АБС")
+         Container(abs_client, "ABS client", Delphi, "десктоп-клиент к АБС")
+         ContainerDb(abs_db, "ABS DB", Oracle, "база данных АБС")
+         Container(abs_request_synchronizer, "NEW\nRequest Synchronizer", "Java, Spring", "синхронизирует кредитные и депозитные заявки с АБС")
+    }
+}
+
+
+Rel(proxy_api, site,"сайт")
+Rel(site, deposit_service," ")
+
+
+Rel(lb, proxy_api," ")
+Rel(proxy_api, deposit_service, "потенц.API")
+Rel(proxy_api, monolith, "Платежи\nсчета\nпользователи ")
+Rel(deposit_service, requests_queue, " ")
+Rel(proxy_api, bff_ib, "Запросы\nот IB web bank")
+Rel(bff_ib, ib_cache, "сбор\nвсего")
+Rel(monolith, ib_cache, " ")
+Rel(deposit_service, ib_cache, " ")
+
+
+Rel(front_ib, lb, "REST")
+Rel(front_site, lb, "REST")
+Rel(new_user, front_site,"заявка\nна депозит (ФИО,телефон)")
+
+Rel(bff_ib, deposit_service, "ставки\nзаявки")
+Rel(bff_ib, monolith, "платжеи\счета\nпользователи")
+
+Rel(deposit_service, ib_db, "crud", "SQL")
+Rel(monolith, monolith_db, "crud", "SQL")
+
+Rel(current_user, front_ib, "заявка\nна депозит (счет,сумма)")
+
+BiRel(abs_client, abs_db," pl/sql")
+Rel(deposit_service, abs_adapter, "запрос\nстатуса заявки","REST")
+
+BiRel(abs_adapter, abs_db, "pl/sql")
+
+Rel(back_credit_manager, abs_client,"расчет ставок депозитов")
+Rel(back_deposit_manager, abs_client,"подтверждение заявок")
+Rel(back_deposit_manager, abs_client,"расчет индивидуальных ставок")
+Rel(sms_gateway, abs_adapter,"проверка неотправленных уведомлений", "REST")
+
+BiRel(call_centre, requests_queue,"обновление\nзаявок и статусов")
+
+BiRel(partner_call_adapter, requests_queue," ")
+
+BiRel(partner_call_adapter, partner_call_centre,"\nзаявки\nстатусы", SFTP)
+
+BiRel(abs_request_synchronizer, requests_queue,"обновление\nзаявок и статусов")
+BiRel(abs_db, abs_request_synchronizer, " pl/sql ")
+
+Lay_D(abs_request_synchronizer, requests_queue)
+Lay_U(requests_queue, call_centre)
+Lay_U(deposit_service, abs_adapter)
+
+
+
+@enduml
