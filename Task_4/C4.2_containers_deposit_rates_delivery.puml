@@ -1,5 +1,5 @@
 @startuml
-title "MVP цифрового открытия депозитов банка Стандарт.\nInternet Bank and ABS Containers Diagram"
+title "MVP передачи ставок в call-центры банка Стандарт. Container Diagram"
 
 top to bottom direction
 
@@ -7,7 +7,6 @@ top to bottom direction
 Boundary(ext_office, "Ext Office", "") {
     System_Ext(partner_call_centre, "Partner call-центр", "партнерская система call-центра")
     Person_Ext(partner_call_operator, "Partner call-operator", "уточняет заявку и согласовывает посещение офиса")
-
 }
 
 Boundary(back_office, "Back Office", "") {
@@ -18,12 +17,10 @@ Boundary(back_office, "Back Office", "") {
 
     Boundary(abs, "ABS", "System") {
          Container(abs_sftp_adapter, "ABS SFTP adapter", "Java, Spring", "Адаптер для обмена SFTP")
-         Container(abs_adapter, "ABS REST adapter", "Java, Spring", "REST адаптер АБС")
          Container(abs_client, "ABS client", Delphi, "десктоп-клиент к АБС")
-         ContainerDb(abs_db, "АБС БД", Oracle, "база данных АБС")
-         Container(request_synchronizer, "Requests synchronizer", "Java, Spring", "синхронизирует заявки")
-         Container(deposit_rates_manager, "Deposit rates manager", "Java, Spring", "Отвечает за обновление ставок за пределами АБС")
-         ContainerQueue(deposit_rates_queue, "Deposit rates queue", "Kafka", "Очередь депозитных ставок")
+         ContainerDb(abs_db, "ABS DB", Oracle, "база данных АБС")
+         Container(deposit_rates_manager, "NEW\nDeposit rates manager", "Java, Spring", "Отвечает за обновление ставок за пределами АБС")
+         ContainerQueue(deposit_rates_queue, "NEW\nDeposit rates queue", "Kafka", "Очередь депозитных ставок")
     }
 }
 
@@ -34,22 +31,13 @@ Rel(call_centre, deposit_rates_queue,"REST\n актуальные ставки")
 Rel(deposit_rates_manager, abs_sftp_adapter," актуальные ставки")
 Rel(deposit_rates_manager, deposit_rates_queue, " ")
 
+BiRel(deposit_rates_manager, abs_db, " pl/sql ")
 
-Rel(deposit_rates_manager, abs_db, " pl/sql ")
-Rel(abs_db, deposit_rates_manager, " ")
-
-Rel(abs_client, abs_db," pl/sql ")
-Rel(abs_db, abs_client, " ")
-
-Rel(abs_adapter, abs_db, " pl/sql ")
-Rel(abs_db, abs_adapter, " ")
+BiRel(abs_client, abs_db," pl/sql ")
 
 Rel(back_credit_manager, abs_client,"расчет ставок депозитов")
 
 Rel(abs_sftp_adapter, partner_call_centre,"SFTP\n актуальные ставки")
-
-Rel(request_synchronizer, abs_db, " ")
-Rel(abs_db, request_synchronizer, " pl/sql ")
 
 'Lay_L(abs_client, back_credit_manager)
 'Lay_R(partner_call_centre, abs_sftp_adapter)

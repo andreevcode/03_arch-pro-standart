@@ -1,0 +1,122 @@
+@startuml
+title "Full product цифрового открытия кредитов банка Стандарт. Container Diagram"
+
+top to bottom direction
+
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+Person_Ext(current_user, "Current user", "открывает кредит")
+Person_Ext(new_user, "New user", "отправляет заявку на кредит через сайт")
+System_Ext(ext_credit_score, "Бюро кредитных историй", "предоставляет историю клиента для оценки")
+
+
+Boundary(back_office, "Back Office", "") {
+    System(sms_gateway, "SMS gateway", "отправка запросов к телеком оператору")
+
+    Person(back_credit_manager, "Back credit manager", "подтверждает кредитные заявки")
+    Boundary(internet_bank, "Internet bank", "System") {
+        Container(lb, "Load balancer", "https", "балансировка http")
+        Container(proxy_api, "NEW\nProxy API Gateway", "nginx", "REST, gateway, reverse proxy")
+
+        Container(front_ib, "NEW IB web app", "React.js, browser", "обновленный интернет банк")
+        Container(front_site, "Site SPA", "React SPA, browser", "сайт\nс рекламой кредитов")
+
+        Container(bff_ib, "NEW\nBFF IB", "Java, Spring", "BFF - Собирает данные для фронта")
+        Container(site, "NEW\nSite SSR", "Next.js", "статика + актуальные кредиты")
+
+        Container(credit_service, "NEW\nCredit service", Java Spring, "кредитные ставки и заявки")
+
+        Container(monolith, "Old Internet bank monolith", "C#, .NET", "Платежи, счета, пользователи")
+
+        ContainerDb(ib_db, "NEW\nIB database", "Postgres", "кредитные ставки\nи заявки")
+        ContainerDb(monolith_db, "Monolith DB", "MS SQL", "БД монолита")
+        ContainerDb(ib_cache, "NEW\nIB Cache", "Redis", "Cчета, кредитные ставки и заявки")
+
+        ContainerQueue(requests_queue, "NEW\nRequests Queue", Kafka, "Очередь изменений по депозитных/кредитным заявкам ")
+    }
+
+    Boundary(abs, "ABS", "System") {
+         Container(abs_adapter, "ABS REST adapter", "Java, Spring", "REST адаптер АБС")
+         Container(abs_client, "ABS client", Delphi, "десктоп-клиент к АБС")
+         ContainerDb(abs_db, "ABS DB", Oracle, "база данных АБС")
+         Container(abs_request_synchronizer, "NEW\nRequest Synchronizer", "Java, Spring", "синхронизирует кредитные и депозитные заявки с АБС")
+    }
+    
+    Boundary(credit_score_system, "Система кредитного скоринга", "System") {
+        Container(credit_score_data_retriever, "Credit Score Data Retriever", "Python, Flask", "Вытягивает из АБС дополн.данные для скринга")
+        Container(credit_score_calculator, "Credit Score Calculator", "Python, Flask", "Калькулятор оценки клиента")
+        ContainerDb(credit_score_db, "Credit Score Db", "Postgres", "БД системы скоринга")
+    }
+
+    Boundary(credit_machine_system, "Credit Conveyor", "System") {
+        Container(credit_pre_request_manager, "NEW\nPre Request Manager", "Java, Spring", "Периодически вызывает конвейер для переоценки клиента")
+
+        Container(credit_conveyor_ui, "Credit Сonveyor Web App", "browser", "UI кредитного конвейера")
+        ContainerDb(credit_conveyor_db, "Credit Сonveyor Db", "Oracle", "БД кредитного конвейера")
+        Container(credit_conveyor, "Credit Conveyor", "Java, Camunda", "процесс согласования кредитной заявки")
+        Container(credit_conveyor_request_synchronizer, "NEW\nCredit Request Synchronizer", "Java, Spring", "Синхронизатор кредитных заявок")
+    }
+   
+}
+
+
+Rel(proxy_api, site,"сайт")
+Rel(site, credit_service," ")
+
+
+Rel(lb, proxy_api," ")
+Rel(proxy_api, credit_service, "потенц.API")
+Rel(proxy_api, monolith, "Платежи\nсчета\nпользователи ")
+Rel(credit_service, requests_queue, " ")
+Rel(proxy_api, bff_ib, "Запросы\nот IB web bank")
+Rel(bff_ib, ib_cache, "сбор\nвсего")
+Rel(monolith, ib_cache, " ")
+Rel(credit_service, ib_cache, " ")
+
+
+Rel(front_ib, lb, "REST")
+Rel(front_site, lb, "REST")
+Rel(new_user, front_site,"заявка\nна кредит (ФИО,телефон)")
+
+Rel(bff_ib, credit_service, "кредитные\nставки, заявки")
+Rel(bff_ib, monolith, "платжеи\счета\nпользователи")
+
+Rel(credit_service, ib_db, "crud")
+Rel(monolith, monolith_db, "crud")
+
+Rel(current_user, front_ib, "заявка\nна кредит (счет,сумма)")
+
+BiRel(abs_client, abs_db," pl/sql")
+Rel(credit_service, abs_adapter, "запрос\nстатуса заявки","REST")
+
+BiRel(abs_adapter, abs_db, "pl/sql")
+
+BiRel(back_credit_manager, credit_conveyor_ui,"работа с кредитными заявками")
+BiRel(credit_conveyor_ui, credit_conveyor,"crud запросы", "REST")
+Rel(sms_gateway, abs_adapter,"проверка неотправленных уведомлений", "REST")
+
+
+BiRel(abs_request_synchronizer, requests_queue,"обновление\nзаявок и статусов")
+BiRel(abs_db, abs_request_synchronizer, " pl/sql ")
+BiRel(requests_queue, credit_conveyor_request_synchronizer, "обновление статусов и заявок")
+BiRel(credit_conveyor_request_synchronizer, credit_conveyor_db, "синхронизация изменений по заявкам между БД", "SQL")
+BiRel(credit_conveyor_request_synchronizer, credit_conveyor, "движение заявок", "REST")
+BiRel(credit_conveyor, credit_score_calculator, "запрос оценки клиента", REST)
+
+BiRel(credit_score_calculator, credit_score_db, "crud")
+BiRel(credit_score_calculator, credit_score_data_retriever, "данные для расчета")
+Rel(credit_score_data_retriever, abs_db, "внутренняя история по клиенту", "pl/sql")
+Rel(credit_pre_request_manager, credit_conveyor, "Пересчитать условия кредита", "REST")
+BiRel(credit_score_calculator, ext_credit_score, "внешняя история по клиенту", "REST")
+
+BiRel(credit_conveyor, credit_conveyor_db, "crud", "SQL")
+
+
+'Lay_D(abs_request_synchronizer, requests_queue)
+'Lay_U(credit_service, abs_adapter)
+'Lay_L(abs_client, back_credit_manager)
+Lay_D(credit_conveyor, credit_score_calculator)
+
+
+
+@enduml

@@ -1,0 +1,51 @@
+@startuml
+title Full product цифрового открытия кредитов банка Стандарт. Context Diagram
+
+top to bottom direction
+
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+Person_Ext(new_user, "New user", "отправляет заявку на кредит через сайт")
+Person_Ext(current_user, "Current user", "открывает кредит")
+System_Ext(ext_credit_score, "Бюро кредитных историй", "предоставляет историю клиента для оценки")
+
+
+Boundary(front_office, "Front Office", "") {
+    Person(front_manager, "Front manager", "принимает кредитные заявки\nзаключает договора")
+}
+
+Boundary(back_office, "Back Office", "") {
+    Person(back_credit_manager, "Back credit manager", "подтверждает кредитные заявки")
+    System(credit_score, "Система кредитного скоринга", "рассчитывает оценку клиентов")
+    System(credit_machine, "Кредитный конвейер", "агрегирует все данные для принятия решения по заявкам")
+
+    System(sms_gateway, "СМС шлюз", "отправка запросов к телеком оператору")
+    System(abs, "АБС", "автоматизированная банковская система")
+    System(internet_bank, "Internet bank", "Интернет банк")
+}
+
+
+System_Ext(telecom_operator, "Telecom Operator", "отправляет смс")
+
+Rel(new_user,abs, "отправляет заявку через сайт")
+BiRel(new_user,front_manager, "идентификация\nзаявка\nзаключение договора")
+
+Rel(front_manager,abs, "Отправляет заявку\nна согласование в бэк-офис")
+
+Rel(current_user, internet_bank, "отправляет заявку на кредит")
+Rel(internet_bank, abs, "регистрация заявки")
+BiRel(back_credit_manager, credit_machine, "рассматривает\nзаявки")
+BiRel(credit_machine, abs, "статусы заявки\n")
+
+Rel(credit_machine, credit_score, "запрос оценки клиента","REST")
+Rel(credit_score, ext_credit_score, "запрос истории клиента","REST")
+
+Rel(abs, sms_gateway, "запрашивает уведомление клиентов")
+Rel(sms_gateway, telecom_operator, "запрос на отправку SMS клиентам", REST)
+Rel(telecom_operator, current_user, "СМС")
+
+
+Lay_L(abs, new_user )
+Lay_L(internet_bank, current_user )
+
+@enduml
